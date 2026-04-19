@@ -1,0 +1,2269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Media Ranker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0f;
+    --bg2: #1a1a1c;
+    --bg3: #2a2a2e;
+    --border: rgba(255,255,255,0.14);
+    --border2: rgba(255,255,255,0.26);
+    --text: #f5f2ed;
+    --text2: #b8b4ae;
+    --text3: #7a7874;
+    --accent: #d4a84b;
+    --accent2: #b8902f;
+    --green: #4caf7a;
+    --red: #e05a5a;
+    --blue: #5a9ee0;
+    --radius: 10px;
+    --radius-lg: 16px;
+    --ui: 'Segoe UI', Tahoma, sans-serif;
+    --serif: Georgia, 'Times New Roman', serif;
+  }
+
+  body {
+    font-family: var(--ui);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #app { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+  /* ── SETUP SCREEN ── */
+  #setup-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    gap: 2rem;
+  }
+
+  .logo {
+    text-align: center;
+  }
+  .logo h1 {
+    font-size: 2.8rem;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    font-family: var(--serif);
+    color: var(--text);
+  }
+  .logo h1 span { color: var(--accent); }
+  .logo p {
+    margin-top: 0.5rem;
+    font-size: 1rem;
+    color: var(--text2);
+    font-family: var(--ui);
+    letter-spacing: 0.05em;
+  }
+
+  .setup-card {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 680px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .field-label {
+    font-family: var(--ui);
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    color: var(--text2);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .path-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .path-display {
+    flex: 1;
+    background: var(--bg3);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.7rem 1rem;
+    font-family: var(--ui);
+    font-size: 1rem;
+    color: var(--text2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 42px;
+    line-height: 1.5;
+  }
+  .path-display.set { color: var(--text); }
+
+  btn, .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.6rem 1.2rem;
+    border-radius: var(--radius);
+    font-family: var(--ui);
+    font-size: 1rem;
+    cursor: pointer;
+    border: 0.5px solid var(--border2);
+    background: var(--bg3);
+    color: var(--text);
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #2e2e32; border-color: rgba(255,255,255,0.25); }
+  .btn:active { transform: scale(0.98); }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #1a1208;
+    font-weight: bold;
+  }
+  .btn.primary:hover { background: var(--accent2); border-color: var(--accent2); }
+  .btn.primary:disabled { background: var(--bg3); border-color: var(--border); color: var(--text3); cursor: not-allowed; }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .toggle {
+    position: relative;
+    width: 52px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .toggle-thumb {
+    position: absolute;
+    top: 4px; left: 4px;
+    width: 20px; height: 20px;
+    background: var(--text2);
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+  .toggle input:checked ~ .toggle-track { background: var(--accent); border-color: var(--accent); }
+  .toggle input:checked ~ .toggle-track .toggle-thumb { transform: translateX(24px); background: #1a1208; }
+  .toggle-label { font-size: 1rem; color: var(--text2); }
+
+  .divider { border: none; border-top: 0.5px solid var(--border); }
+
+  .stats-row {
+    display: flex;
+    gap: 12px;
+  }
+  .stat-pill {
+    background: var(--bg3);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.5rem 1rem;
+    font-family: var(--ui);
+    font-size: 1rem;
+    color: var(--text2);
+  }
+  .stat-pill strong { color: var(--accent); }
+
+  /* ── BATTLE SCREEN ── */
+  #battle-screen {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1.5rem;
+    border-bottom: 0.5px solid var(--border);
+    gap: 1rem;
+  }
+  .top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+  }
+  .top-bar-logo {
+    font-family: var(--serif);
+    font-size: 1.2rem;
+    font-weight: 400;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+  }
+  .top-bar-logo span { color: var(--accent); }
+  .top-bar-right { display: flex; gap: 8px; flex-shrink: 0; }
+
+  .battle-area {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .contender {
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.15s;
+  }
+  .contender:hover { background: rgba(255,255,255,0.025); }
+  .contender.winner-flash { animation: winFlash 0.35s ease-out; }
+  @keyframes winFlash {
+    0% { background: rgba(212,168,75,0.0); }
+    30% { background: rgba(212,168,75,0.18); }
+    100% { background: rgba(212,168,75,0.0); }
+  }
+
+  .contender-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding: 0.3rem 0.5rem;
+    flex-shrink: 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .pick-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: transparent;
+    border: 0.5px solid var(--border2);
+    border-radius: 7px;
+    padding: 0.28rem 0.8rem;
+    font-family: var(--ui);
+    font-size: 1.6rem;
+    color: var(--text2);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    width: 100%;
+    justify-content: center;
+  }
+  .pick-btn:hover, .contender:hover .pick-btn {
+    background: rgba(212,168,75,0.1);
+    border-color: rgba(212,168,75,0.4);
+    color: var(--accent);
+  }
+
+  .contender-inner {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+  }
+  .contender-inner img,
+  .contender-inner video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .contender-footer {
+    padding: 0.45rem 0.75rem;
+    border-top: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+  .contender-name {
+    font-family: var(--ui);
+    font-size: 1.44rem;
+    color: var(--text2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+  .elo-badge {
+    font-family: var(--ui);
+    font-size: 1.36rem;
+    color: var(--accent);
+    background: rgba(212,168,75,0.1);
+    border: 0.5px solid rgba(212,168,75,0.25);
+    border-radius: 6px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+  }
+
+  .vs-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-left: 0.5px solid var(--border);
+    border-right: 0.5px solid var(--border);
+    width: 52px;
+    flex-shrink: 0;
+  }
+  .vs-skip-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 0.3rem 0;
+    flex-shrink: 0;
+    width: 100%;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .vs-skip-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    background: none;
+    border: 0.5px solid transparent;
+    border-radius: 6px;
+    color: var(--text2);
+    cursor: pointer;
+    padding: 0.15rem 0.5rem;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .vs-skip-btn:hover { color: var(--text); border-color: var(--border2); background: rgba(255,255,255,0.06); }
+  .vs-skip-btn span { font-family: var(--ui); font-size: 1.1rem; letter-spacing: 0.05em; }
+  .vs-label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--serif);
+    font-size: 1.1rem;
+    color: var(--text2);
+    font-style: italic;
+  }
+
+  .vs-bottom-btns {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 0.3rem 0;
+    border-top: 0.5px solid var(--border);
+    flex-shrink: 0;
+    width: 100%;
+  }
+  .vs-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 0.5px solid transparent;
+    border-radius: 6px;
+    color: var(--text2);
+    cursor: pointer;
+    padding: 0.25rem 0;
+    width: 100%;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .vs-icon-btn:hover { color: var(--text); border-color: var(--border2); background: rgba(255,255,255,0.06); }
+
+  .score-preview {
+    position: absolute;
+    bottom: 3.5rem;
+    right: 0.75rem;
+    font-family: var(--ui);
+    font-size: 2.5rem;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 10;
+    opacity: 0.75;
+    paint-order: stroke fill;
+    -webkit-text-stroke: 6px #000;
+    text-stroke: 6px #000;
+  }
+  .score-preview.positive { color: var(--green); }
+  .score-preview.negative { color: var(--red); }
+
+  .left-border { border-right: 0.5px solid var(--border); }
+
+  /* ── TOOLTIP ── */
+  [data-tip] { position: relative; }
+
+  #tooltip {
+    position: fixed;
+    background: #1a1a1c;
+    border: 0.5px solid var(--border2);
+    color: var(--text2);
+    font-family: var(--ui);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    pointer-events: none;
+    z-index: 9999;
+    display: none;
+  }
+
+  .bar-divider {
+    width: 1px;
+    min-height: 1.2rem;
+    align-self: stretch;
+    background: var(--border2);
+    flex-shrink: 0;
+  }
+
+  .audio-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    background: transparent;
+    border: 0.5px solid var(--border2);
+    border-radius: 7px;
+    padding: 0 0.6rem;
+    font-family: var(--ui);
+    font-size: 1.3rem;
+    color: var(--text2);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    flex-shrink: 0;
+    align-self: stretch;
+  }
+  .audio-btn.visible { display: flex; }
+  .audio-btn.on {
+    background: rgba(90,158,224,0.15);
+    border-color: rgba(90,158,224,0.5);
+    color: var(--blue);
+  }
+  .audio-btn:hover { border-color: var(--border2); color: var(--text); }
+  .audio-btn.on:hover { background: rgba(90,158,224,0.25); }
+
+  /* ── LEADERBOARD SCREEN ── */
+  #leaderboard-screen {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+  }
+
+  #lb-header {
+    background: var(--bg);
+    border-bottom: 0.5px solid var(--border);
+    padding: 0.85rem 2rem 0.75rem;
+    flex-shrink: 0;
+  }
+
+  #lb-scroll {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  #lb-content {
+    padding: 0 2rem 2rem;
+  }
+
+  #leaderboard-screen h2 {
+    font-size: 1.4rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  .lb-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .lb-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.6rem 0.5rem;
+    border-bottom: 0.5px solid var(--border);
+    transition: background 0.12s;
+  }
+  .lb-row:hover { background: rgba(255,255,255,0.02); }
+  .lb-row:last-child { border-bottom: none; }
+
+  .lb-rank { font-family:var(--ui); font-size:1.44rem; color:var(--text2); min-width:2rem; text-align:right; flex-shrink:0; }
+  .lb-thumb-wrap { flex-shrink: 0; display:flex; align-items:center; justify-content:center; background:var(--bg3); border-radius:6px; overflow:hidden; cursor:pointer; max-width:100%; }
+  .lb-thumb-wrap img, .lb-thumb-wrap video { display:block; object-fit:contain; border-radius:6px; }
+  .lb-thumb-wrap:hover { outline: 1.5px solid rgba(212,168,75,0.5); }
+  .lb-info { flex:1; min-width:0; }
+  .lb-fname { font-family:var(--ui); font-size:1.6rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lb-meta { font-family:var(--ui); font-size:1.4rem; color:var(--text2); margin-top:2px; }
+  .lb-elo-badge { font-family:var(--ui); font-size:1.56rem; color:var(--accent); flex-shrink:0; }
+  .lb-no-preview { font-family:var(--ui); font-size:1.2rem; color:var(--text2); text-align:center; padding:0.25rem; line-height:1.3; }
+  .lb-unranked { opacity: 0.5; }
+  .lb-delete-btn {
+    background: none;
+    border: 0.5px solid transparent;
+    border-radius: 6px;
+    color: var(--text2);
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0.2rem 0.4rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .lb-delete-btn:hover { color: var(--red); border-color: rgba(224,90,90,0.4); }
+
+  /* ── LIGHTBOX ── */
+  body.cinematic #lightbox-close { display: none; }
+
+  #cinematic-exit {
+    display: none;
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1000;
+    background: rgba(0,0,0,0.5);
+    border: 0.5px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    color: var(--text2);
+    font-family: var(--ui);
+    font-size: 0.85rem;
+    padding: 0.3rem 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  #cinematic-exit:hover { background: rgba(0,0,0,0.75); color: var(--text); }
+
+  body.cinematic .top-bar,
+  body.cinematic #battle-count-bar,
+  body.cinematic #dupe-banner,
+  body.cinematic .contender-header,
+  body.cinematic .contender-footer,
+  body.cinematic .vs-skip-wrap {
+    display: none !important;
+  }
+  body.cinematic #cinematic-exit { display: block; }
+  body.cinematic .contender { cursor: crosshair; }
+  body.cinematic .contender-inner img,
+  body.cinematic .contender-inner video { border-radius: 0; }
+  body.cinematic .vs-column { width: 32px; }
+  body.cinematic .vs-label { font-size: 0.85rem; }
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+  }
+  #lightbox.show { display: flex; }
+  #lightbox-inner {
+    max-width: 92vw;
+    max-height: 92vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+  }
+  #lightbox-inner img, #lightbox-inner video {
+    max-width: 92vw;
+    max-height: 92vh;
+    object-fit: contain;
+    border-radius: var(--radius);
+    display: block;
+  }
+  #lightbox-close {
+    position: fixed;
+    top: 1.2rem;
+    right: 1.5rem;
+    font-family: var(--ui);
+    font-size: 1.5rem;
+    color: var(--text3);
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    display: none;
+  }
+  #lightbox-close:hover { color: var(--text2); }
+
+  .lb-page-btn {
+    background: var(--bg3);
+    border: 0.5px solid var(--border2);
+    border-radius: 6px;
+    padding: 0.3rem 0.7rem;
+    font-family: var(--ui);
+    font-size: 1.5rem;
+    color: var(--text2);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .lb-page-btn:hover { background: #2e2e32; }
+  .lb-page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .lb-page-btn.active { color: var(--accent); border-color: rgba(212,168,75,0.35); }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: var(--border2);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--text2);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  input[type="range"]:hover::-webkit-slider-thumb { background: var(--text); }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--text2);
+    border: none;
+    cursor: pointer;
+  }
+
+  /* ── LOADING / ERROR ── */
+  #loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(14,14,15,0.85);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    font-family: var(--ui);
+    font-size: 1.8rem;
+    color: var(--text2);
+  }
+
+  .error-banner {
+    background: rgba(224,90,90,0.1);
+    border: 0.5px solid rgba(224,90,90,0.3);
+    border-radius: var(--radius);
+    padding: 0.6rem 1rem;
+    font-family: var(--ui);
+    font-size: 1.6rem;
+    color: var(--red);
+    display: none;
+  }
+
+  .nav-tab {
+    font-family: var(--ui);
+    font-size: 1.5rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 0.5px solid var(--border);
+    background: none;
+    color: var(--text2);
+    transition: background 0.15s, color 0.15s;
+  }
+  .nav-tab:hover { background: var(--bg3); color: var(--text); }
+  .nav-tab.active { background: var(--bg3); color: var(--accent); border-color: rgba(212,168,75,0.3); }
+
+  .empty-state {
+    text-align: center;
+    color: var(--text3);
+    font-family: var(--ui);
+    font-size: 1.7rem;
+    padding: 4rem 0;
+  }
+
+  /* ── DUPE BANNER ── */
+  #dupe-banner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.55rem 1.25rem;
+    background: rgba(224,90,90,0.1);
+    border-bottom: 0.5px solid rgba(224,90,90,0.3);
+    font-family: var(--ui);
+    font-size: 1.56rem;
+    color: var(--red);
+    flex-shrink: 0;
+  }
+  #dupe-banner.show { display: flex; }
+  #dupe-banner strong { color: #f07070; }
+  .dupe-hint {
+    color: rgba(224,90,90,0.6);
+    font-size: 1.4rem;
+  }
+  .delete-btn {
+    background: rgba(224,90,90,0.15);
+    border: 0.5px solid rgba(224,90,90,0.4);
+    border-radius: var(--radius);
+    padding: 0.3rem 0.8rem;
+    font-family: var(--ui);
+    font-size: 1.44rem;
+    color: var(--red);
+    cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .delete-btn:hover { background: rgba(224,90,90,0.28); }
+
+  @keyframes deleteFlash {
+    0% { background: rgba(224,90,90,0.0); }
+    30% { background: rgba(224,90,90,0.22); }
+    100% { background: rgba(224,90,90,0.0); }
+  }
+  .contender.delete-flash { animation: deleteFlash 0.4s ease-out; }
+
+  .btn.reconnect {
+    background: rgba(212,168,75,0.12);
+    border-color: rgba(212,168,75,0.35);
+    color: var(--accent);
+    font-size: 1.5rem;
+    padding: 0.45rem 0.9rem;
+  }
+  .btn.reconnect:hover { background: rgba(212,168,75,0.22); }
+  .saved-tag {
+    font-family: var(--ui);
+    font-size: 1.36rem;
+    color: var(--green);
+    margin-top: 0.3rem;
+    display: none;
+  }
+  .saved-tag.show { display: block; }
+
+  @media (max-width: 600px) {
+    .battle-area { grid-template-columns: 1fr; grid-template-rows: 1fr auto 1fr; }
+    .vs-column { flex-direction: row; width: 100%; height: 40px; border-left: none; border-right: none; border-top: 0.5px solid var(--border); border-bottom: 0.5px solid var(--border); }
+    .vs-skip-wrap { border-bottom: none; border-right: 0.5px solid var(--border); width: auto; padding: 0 0.5rem; }
+    .left-border { border-right: none; border-bottom: 0.5px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- LOADING -->
+  <div id="loading-overlay">scanning files…</div>
+  <div id="tooltip"></div>
+  <button id="cinematic-exit" onclick="toggleFullscreen()" data-tip="[F / Esc] exit cinematic">✕</button>
+
+  <!-- LIGHTBOX -->
+  <div id="lightbox" onclick="closeLightbox()">
+    <div id="lightbox-inner" onclick="event.stopPropagation()"></div>
+    <div id="lightbox-close" onclick="closeLightbox()">esc to close</div>
+  </div>
+
+  <!-- SETUP SCREEN -->
+  <div id="setup-screen">
+    <div class="logo">
+      <h1>Media <span>Ranker</span></h1>
+      <p>elo-based 1v1 image &amp; video ranking</p>
+    </div>
+
+    <div class="setup-card">
+      <div>
+        <div class="field-label">Media folder</div>
+        <div class="path-row">
+          <div class="path-display" id="media-path-display">no folder selected</div>
+          <button class="btn" id="pick-media-btn">choose</button>
+        </div>
+        <div class="toggle-row" style="margin-top:0.75rem;">
+          <label class="toggle">
+            <input type="checkbox" id="recursive-toggle" checked>
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          </label>
+          <span class="toggle-label">include subfolders</span>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div>
+        <div class="field-label">Rankings file (JSON)</div>
+        <div class="path-row">
+          <div class="path-display" id="json-path-display">no file selected</div>
+          <button class="btn" id="open-json-btn">open</button>
+          <button class="btn" id="new-json-btn">new</button>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div>
+        <div class="field-label">Backup folder <span style="font-size:0.8rem; text-transform:none; letter-spacing:0; color:var(--text3);">— auto-saves every 5 min</span></div>
+        <div class="path-row">
+          <div class="path-display" id="backup-path-display">no folder selected (backups disabled)</div>
+          <button class="btn" id="pick-backup-btn">choose</button>
+        </div>
+      </div>
+
+      <div class="error-banner" id="setup-error"></div>
+
+      <button class="btn reconnect" id="reconnect-btn" style="display:none;">⟳ reconnect saved session</button>
+
+      <div id="setup-stats" class="stats-row" style="display:none;">
+        <div class="stat-pill"><strong id="stat-ranked">0</strong>/<strong id="stat-files">0</strong> files ranked &nbsp;·&nbsp; <strong id="stat-battles">0</strong> battles</div>
+      </div>
+
+      <button class="btn primary" id="start-btn" disabled>start ranking</button>
+    </div>
+  </div>
+
+  <!-- BATTLE SCREEN -->
+  <div id="battle-screen">
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <span class="top-bar-logo">Media <span>Ranker</span></span>
+        <button class="nav-tab" id="tab-battle" onclick="showTab('battle')" data-tip="[B] battle tab">Battle</button>
+        <button class="nav-tab" id="tab-lb" onclick="showTab('lb')" data-tip="[R] rankings tab">Rankings</button>
+        <span id="file-count-label" style="font-size:1rem; color:var(--text2); margin-left:0.5rem;"></span>
+      </div>
+      <div class="top-bar-right">
+        <button class="btn" id="back-btn">⬅ Setup</button>
+      </div>
+    </div>
+
+    <!-- Battle count bar, only visible on battle tab -->
+    <div id="battle-count-bar" style="display:none; padding:0.3rem 1.5rem; font-size:1rem; color:var(--text2); border-bottom:0.5px solid var(--border); align-items:center; gap:1rem;">
+      battle #<strong id="battle-count" style="color:var(--accent);">0</strong>
+      <div class="bar-divider"></div>
+      <div class="toggle-row" data-tip="[W] toggle winner stays" style="cursor:pointer; margin:0;" onclick="toggleWinnerStays()">
+        <div class="toggle" style="pointer-events:none;">
+          <input type="checkbox" id="winner-stays-checkbox" style="display:none;">
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+        </div>
+        <span class="toggle-label">winner stays</span>
+      </div>
+    </div>
+
+    <div style="display:flex; flex:1; flex-direction:column; min-height:0;">
+
+      <!-- Dupe banner -->
+      <div id="dupe-banner">
+        <span>⚠ <strong>exact duplicate detected</strong> — these files are byte-for-byte identical — pick which to delete</span>
+      </div>
+
+      <!-- Battle area -->
+      <div id="battle-area-wrap" style="flex:1; display:flex; flex-direction:column; min-height:0;">
+        <div class="battle-area" id="battle-area" style="flex:1; min-height:0;">
+
+          <div class="contender left-border" id="left-contender" onclick="isDupePair ? deleteDupe('left') : pick('left')" data-tip="[← / A] pick left">
+            <div class="contender-header">
+              <button class="pick-btn" tabindex="-1">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M8 2L3 6.5L8 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span id="left-pick-label">Pick</span>
+              </button>
+              <button class="audio-btn" id="audio-btn-left" onclick="event.stopPropagation(); toggleAudio('left')" tabindex="-1" data-tip="[M] toggle audio">
+                <svg id="audio-icon-left" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 6h2.5L8 3v10L4.5 10H2V6z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path class="audio-waves" d="M10.5 5.5a3.5 3.5 0 010 5M12.5 3.5a6 6 0 010 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line class="audio-cross" x1="10" y1="5" x2="14" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" display="none"/><line class="audio-cross" x1="14" y1="5" x2="10" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" display="none"/></svg>
+              </button>
+            </div>
+            <div class="contender-inner" id="left-media-wrap"></div>
+            <div class="contender-footer">
+              <span class="contender-name" id="left-name">—</span>
+              <span class="elo-badge">score: <span id="left-elo">1200</span> &nbsp;·&nbsp; <span id="left-pos">—</span></span>
+            </div>
+          </div>
+
+          <div class="vs-column">
+            <div class="vs-skip-wrap">
+              <button class="vs-skip-btn" onclick="event.stopPropagation(); skip()" data-tip="[↑ / S] skip">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 3L7 11M3.5 6.5L7 3L10.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Skip</span>
+              </button>
+              <button class="vs-icon-btn" onclick="event.stopPropagation(); togglePause()" data-tip="[Space] pause / resume">
+                <svg width="18" height="18" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="3.5" height="10" rx="1" fill="currentColor"/><rect x="8.5" y="2" width="3.5" height="10" rx="1" fill="currentColor"/></svg>
+              </button>
+              <button class="vs-icon-btn" onclick="event.stopPropagation(); toggleFullscreen()" data-tip="[F] fullscreen">
+                <svg width="18" height="18" viewBox="0 0 14 14" fill="none"><path d="M2 5V2h3M9 2h3v3M12 9v3H9M5 12H2V9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+            <div class="vs-label">vs</div>
+          </div>
+
+          <div class="contender" id="right-contender" onclick="isDupePair ? deleteDupe('right') : pick('right')" data-tip="[→ / D] pick right">
+            <div class="contender-header">
+              <button class="audio-btn" id="audio-btn-right" onclick="event.stopPropagation(); toggleAudio('right')" tabindex="-1" data-tip="[M] toggle audio">
+                <svg id="audio-icon-right" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 6h2.5L8 3v10L4.5 10H2V6z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path class="audio-waves" d="M10.5 5.5a3.5 3.5 0 010 5M12.5 3.5a6 6 0 010 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line class="audio-cross" x1="10" y1="5" x2="14" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" display="none"/><line class="audio-cross" x1="14" y1="5" x2="10" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" display="none"/></svg>
+              </button>
+              <button class="pick-btn" tabindex="-1">
+                <span id="right-pick-label">Pick</span>
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M5 2L10 6.5L5 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+            <div class="contender-inner" id="right-media-wrap"></div>
+            <div class="contender-footer">
+              <span class="contender-name" id="right-name">—</span>
+              <span class="elo-badge">score: <span id="right-elo">1200</span> &nbsp;·&nbsp; <span id="right-pos">—</span></span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Leaderboard -->
+      <div id="leaderboard-screen">
+        <div id="lb-header">
+          <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:0.5rem; flex-shrink:0;">
+              <span style="font-family:var(--ui); font-size:1rem; color:var(--text2);">preview size</span>
+              <input type="range" id="lb-thumb-size" min="64" max="720" value="100" step="8" style="width:100px;">
+              <span style="font-family:var(--ui); font-size:1rem; color:var(--text2); min-width:3rem;" id="lb-thumb-label">100px</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem; flex-shrink:0;">
+              <span style="font-family:var(--ui); font-size:1rem; color:var(--text2);">per page</span>
+              <select id="lb-per-page" style="font-family:var(--ui); font-size:1rem; background:var(--bg3); border:0.5px solid var(--border2); border-radius:6px; color:var(--text); padding:0.25rem 0.5rem;">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem; flex:1; min-width:160px;">
+              <input type="text" id="lb-search" placeholder="filter by name… (* wildcards)" style="flex:1; font-family:var(--ui); font-size:1rem; background:var(--bg3); border:0.5px solid var(--border2); border-radius:6px; color:var(--text); padding:0.25rem 0.75rem; outline:none;">
+            </div>
+            <div id="lb-pagination" style="display:flex; align-items:center; gap:0.4rem; font-family:var(--ui); font-size:1rem; flex-wrap:wrap;"></div>
+          </div>
+        </div>
+        <div id="lb-scroll">
+          <div id="lb-content"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────
+const MEDIA_EXTS = new Set([
+  'jpg','jpeg','png','gif','webp','bmp','avif','svg',
+  'mp4','webm','ogg','mov','mkv','avi'
+]);
+const VIDEO_EXTS = new Set(['mp4','webm','ogg','mov','mkv','avi']);
+const INITIAL_ELO = 1200;
+
+function kFactor(matches) {
+  if (matches < 10) return 64;
+  if (matches < 30) return 40;
+  return 24;
+}
+
+let mediaFolderHandle = null;
+let jsonFileHandle = null;
+
+let allFiles = []; // { handle, name, path, ext }
+let rankings = {}; // hash -> { elo, matches, wins, hash } — full set, persisted to JSON
+let sessionRankings = {}; // filtered view of rankings for files in current session only
+let battleCount = 0;
+
+let leftFile = null, rightFile = null;
+let leftHash = null, rightHash = null;
+let leftURL = null, rightURL = null;
+
+// ── INDEXEDDB PERSISTENCE ─────────────────────────────────────────────
+const DB_NAME = 'media-ranker';
+const DB_VERSION = 1;
+const STORE = 'handles';
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(STORE);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror = e => rej(e.target.error);
+  });
+}
+
+async function dbSet(key, value) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(value, key);
+    tx.oncomplete = res;
+    tx.onerror = e => rej(e.target.error);
+  });
+}
+
+async function dbGet(key) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).get(key);
+    req.onsuccess = e => res(e.target.result ?? null);
+    req.onerror = e => rej(e.target.error);
+  });
+}
+
+async function saveHandles() {
+  try {
+    if (mediaFolderHandle) await dbSet('mediaFolder', mediaFolderHandle);
+    if (jsonFileHandle)    await dbSet('jsonFile', jsonFileHandle);
+    if (backupDirHandle)   await dbSet('backupDir', backupDirHandle);
+  } catch(e) { console.warn('Could not save handles to IndexedDB', e); }
+}
+
+async function loadSavedHandles() {
+  try {
+    const mh = await dbGet('mediaFolder');
+    const jh = await dbGet('jsonFile');
+    const bh = await dbGet('backupDir');
+
+    if (mh) {
+      mediaFolderHandle = mh;
+      mediaPathDisplay.textContent = mh.name;
+      mediaPathDisplay.classList.add('set');
+    }
+    if (jh) {
+      jsonFileHandle = jh;
+      jsonPathDisplay.textContent = jh.name;
+      jsonPathDisplay.classList.add('set');
+    }
+    if (bh) {
+      backupDirHandle = bh;
+      document.getElementById('backup-path-display').textContent = bh.name;
+      document.getElementById('backup-path-display').classList.add('set');
+    }
+    if (mh || jh) {
+      document.getElementById('reconnect-btn').style.display = 'inline-flex';
+    }
+  } catch(e) { console.warn('Could not load saved handles', e); }
+}
+
+async function reconnectAll() {
+  const btn = document.getElementById('reconnect-btn');
+  btn.textContent = '⟳ reconnecting…';
+  btn.disabled = true;
+  let mediaOk = false, jsonOk = false;
+  try {
+    if (mediaFolderHandle) {
+      const perm = await mediaFolderHandle.requestPermission({ mode: 'read' });
+      mediaOk = perm === 'granted';
+    }
+    if (jsonFileHandle) {
+      const perm = await jsonFileHandle.requestPermission({ mode: 'readwrite' });
+      jsonOk = perm === 'granted';
+    }
+    if (backupDirHandle) {
+      // Best effort — don't block on this
+      backupDirHandle.requestPermission({ mode: 'readwrite' }).catch(() => {});
+    }
+    if (mediaOk && jsonOk) {
+      btn.style.display = 'none';
+      await tryLoadJson();
+      await scanAndUpdate();
+    } else if (!mediaOk && mediaFolderHandle) {
+      showSetupError('Folder permission denied — please use "choose" to re-select.');
+      btn.textContent = '⟳ reconnect saved session';
+      btn.disabled = false;
+    } else if (!jsonOk && jsonFileHandle) {
+      showSetupError('File permission denied — please use "open" or "new" to re-select.');
+      btn.textContent = '⟳ reconnect saved session';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    showSetupError('Reconnect failed: ' + e.message);
+    btn.textContent = '⟳ reconnect saved session';
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('reconnect-btn').onclick = reconnectAll;
+
+// ── SETUP UI ───────────────────────────────────────────────────────────
+const pickMediaBtn = document.getElementById('pick-media-btn');
+const startBtn = document.getElementById('start-btn');
+const mediaPathDisplay = document.getElementById('media-path-display');
+const jsonPathDisplay = document.getElementById('json-path-display');
+const setupError = document.getElementById('setup-error');
+const setupStats = document.getElementById('setup-stats');
+
+pickMediaBtn.onclick = async () => {
+  try {
+    mediaFolderHandle = await window.showDirectoryPicker({ mode: 'read' });
+    mediaPathDisplay.textContent = mediaFolderHandle.name;
+    mediaPathDisplay.classList.add('set');
+    document.getElementById('reconnect-btn').style.display = 'none';
+    await saveHandles();
+    await scanAndUpdate();
+  } catch(e) { if(e.name!=='AbortError') showSetupError('Could not open folder: '+e.message); }
+};
+
+const openJsonBtn = document.getElementById('open-json-btn');
+const newJsonBtn  = document.getElementById('new-json-btn');
+
+openJsonBtn.onclick = async () => {
+  try {
+    const [fh] = await window.showOpenFilePicker({
+      types: [{ description: 'JSON', accept: {'application/json': ['.json']} }],
+      multiple: false
+    });
+    jsonFileHandle = fh;
+    jsonPathDisplay.textContent = jsonFileHandle.name;
+    jsonPathDisplay.classList.add('set');
+    document.getElementById('reconnect-btn').style.display = 'none';
+    await saveHandles();
+    await tryLoadJson();
+    updateSetupStats();
+    checkReady();
+  } catch(e) { if(e.name !== 'AbortError') showSetupError('Could not open file: ' + e.message); }
+};
+
+newJsonBtn.onclick = async () => {
+  try {
+    jsonFileHandle = await window.showSaveFilePicker({
+      suggestedName: 'media-rankings.json',
+      types: [{ description: 'JSON', accept: {'application/json': ['.json']} }]
+    });
+    jsonPathDisplay.textContent = jsonFileHandle.name;
+    jsonPathDisplay.classList.add('set');
+    document.getElementById('reconnect-btn').style.display = 'none';
+    await saveHandles();
+    await tryLoadJson();
+    updateSetupStats();
+    checkReady();
+  } catch(e) { if(e.name !== 'AbortError') showSetupError('Could not create file: ' + e.message); }
+};
+
+document.getElementById('pick-backup-btn').onclick = async () => {
+  try {
+    backupDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    document.getElementById('backup-path-display').textContent = backupDirHandle.name;
+    document.getElementById('backup-path-display').classList.add('set');
+    await saveHandles();
+  } catch(e) { if(e.name !== 'AbortError') showSetupError('Could not open backup folder: ' + e.message); }
+};
+
+async function tryLoadJson() {
+  if (!jsonFileHandle) return;
+  try {
+    const file = await jsonFileHandle.getFile();
+    const text = await file.text();
+    if (text.trim()) {
+      const data = JSON.parse(text);
+      rankings = data.rankings || {};
+      battleCount = data.battleCount || 0;
+    }
+  } catch(e) {
+    // New file or invalid — start fresh
+    rankings = {};
+    battleCount = 0;
+  }
+}
+
+async function scanAndUpdate() {
+  if (!mediaFolderHandle) return;
+  showLoading(true);
+  try {
+    const recursive = document.getElementById('recursive-toggle').checked;
+    allFiles = await scanFolder(mediaFolderHandle, recursive, '');
+    updateSetupStats();
+    checkReady();
+  } catch(e) { showSetupError('Scan error: '+e.message); }
+  showLoading(false);
+}
+
+document.getElementById('recursive-toggle').onchange = () => {
+  if (mediaFolderHandle) scanAndUpdate();
+};
+
+async function scanFolder(dirHandle, recursive, prefix) {
+  const results = [];
+  for await (const [name, handle] of dirHandle.entries()) {
+    if (handle.kind === 'file') {
+      const ext = name.split('.').pop().toLowerCase();
+      if (MEDIA_EXTS.has(ext)) {
+        results.push({ handle, name, path: prefix ? prefix+'/'+name : name, ext });
+      }
+    } else if (handle.kind === 'directory' && recursive) {
+      const sub = await scanFolder(handle, true, prefix ? prefix+'/'+name : name);
+      results.push(...sub);
+    }
+  }
+  return results;
+}
+
+function updateSetupStats() {
+  const total = allFiles.length;
+  const ranked = Object.keys(rankings).length;
+  const battles = battleCount;
+  document.getElementById('stat-files').textContent = total;
+  document.getElementById('stat-ranked').textContent = ranked;
+  document.getElementById('stat-battles').textContent = battles;
+  setupStats.style.display = total > 0 ? 'flex' : 'none';
+}
+
+function checkReady() {
+  startBtn.disabled = !(mediaFolderHandle && jsonFileHandle && allFiles.length >= 2);
+}
+
+function showSetupError(msg) {
+  setupError.textContent = msg;
+  setupError.style.display = 'block';
+  setTimeout(() => { setupError.style.display = 'none'; }, 4000);
+}
+
+function showLoading(v) {
+  document.getElementById('loading-overlay').style.display = v ? 'flex' : 'none';
+}
+
+// ── HASHING ───────────────────────────────────────────────────────────
+// Full hash for exact dupe detection; partial hash (fast) for ranking identity
+let dupeHashToFileIndices = {}; // fullHash -> [idx, ...] for dupe detection
+let hashesWithDuplicates = new Set(); // fullHashes that have 2+ files
+
+async function fullHash(fileHandle) {
+  const file = await fileHandle.getFile();
+  const buf = await file.arrayBuffer();
+  const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function areDupes(idxA, idxB) {
+  const fa = allFiles[idxA], fb = allFiles[idxB];
+  if (!fa.hash || !fb.hash) return false;
+  return fa.hash === fb.hash;
+}
+
+function rebuildDupeMap() {
+  dupeHashToFileIndices = {};
+  hashesWithDuplicates = new Set();
+  allFiles.forEach((f, i) => {
+    if (!f.hash) return;
+    if (!dupeHashToFileIndices[f.hash]) dupeHashToFileIndices[f.hash] = [];
+    dupeHashToFileIndices[f.hash].push(i);
+    if (dupeHashToFileIndices[f.hash].length > 1) hashesWithDuplicates.add(f.hash);
+  });
+}
+
+// ── DUPE UI ───────────────────────────────────────────────────────────
+let isDupePair = false;
+
+function updateDupeBanner() {
+  const banner = document.getElementById('dupe-banner');
+  isDupePair = areDupes(
+    allFiles.indexOf(leftFile),
+    allFiles.indexOf(rightFile)
+  );
+  banner.classList.toggle('show', isDupePair);
+  document.getElementById('left-pick-label').textContent  = isDupePair ? 'Delete' : 'Pick';
+  document.getElementById('right-pick-label').textContent = isDupePair ? 'Delete' : 'Pick';
+}
+
+async function deleteDupe(side) {
+  if (isLoadingBattle) return;
+  if (!leftFile || !rightFile || !isDupePair) return;
+
+  const toDelete     = side === 'left' ? leftFile  : rightFile;
+  const toDeleteEl   = side === 'left' ? document.getElementById('left-contender') : document.getElementById('right-contender');
+  const toDeleteHash = side === 'left' ? leftHash  : rightHash;
+  const toDeleteIdx  = allFiles.indexOf(toDelete);
+
+  if (!confirm(`Delete "${toDelete.name}" from disk?\n\nThis cannot be undone.`)) return;
+
+  try {
+    const parentHandle = await getParentHandle(toDelete.path);
+    await parentHandle.removeEntry(toDelete.name);
+  } catch(e) {
+    alert('Could not delete file: ' + e.message);
+    return;
+  }
+
+  allFiles.splice(toDeleteIdx, 1);
+  const entry = rankings[toDeleteHash];
+  if (entry) {
+    entry.names = (entry.names || []).filter(n => n !== toDelete.name);
+    if (entry.names.length === 0) delete rankings[toDeleteHash];
+  }
+  rebuildDupeMap();
+  winnerStaysHash = null; // dupe resolution always resets the streak
+
+  toDeleteEl.classList.add('delete-flash');
+  await autoSave();
+  await new Promise(r => setTimeout(r, 420));
+  toDeleteEl.classList.remove('delete-flash');
+  await loadNextBattle();
+}
+
+async function getParentHandle(filePath) {
+  // filePath is relative like "subfolder/name.jpg" or just "name.jpg"
+  const parts = filePath.split('/');
+  parts.pop(); // remove filename
+  let handle = mediaFolderHandle;
+  for (const part of parts) {
+    if (part) handle = await handle.getDirectoryHandle(part);
+  }
+  return handle;
+}
+
+// ── ELO ───────────────────────────────────────────────────────────────
+function expectedScore(playerElo, opponentElo) {
+  return 1 / (1 + Math.pow(10, (opponentElo - playerElo) / 400));
+}
+
+function updateElo(winnerHash, loserHash) {
+  const winner = rankings[winnerHash];
+  const loser  = rankings[loserHash];
+  const winnerExpected = expectedScore(winner.elo, loser.elo);
+  const winnerDelta = Math.round(kFactor(winner.matches) * (1 - winnerExpected));
+  const loserDelta  = Math.round(kFactor(loser.matches)  * (1 - winnerExpected));
+  winner.elo += winnerDelta;
+  loser.elo  -= loserDelta;
+  winner.wins++;
+  winner.matches++;
+  loser.matches++;
+}
+
+function currentPoolAverage() {
+  const existing = allFiles
+    .map(f => f.hash && rankings[f.hash])
+    .filter(r => r && r.matches > 0);
+  if (existing.length === 0) return INITIAL_ELO;
+  return Math.round(existing.reduce((sum, r) => sum + r.elo, 0) / existing.length);
+}
+
+function ensureRankingEntry(hash, name, startElo) {
+  if (!rankings[hash]) {
+    const elo = startElo !== undefined ? startElo : INITIAL_ELO;
+    rankings[hash] = { hash, elo, matches: 0, wins: 0, names: [name] };
+  } else if (!rankings[hash].names) {
+    rankings[hash].names = [rankings[hash].name || name];
+    delete rankings[hash].name;
+  }
+  if (!rankings[hash].names.includes(name)) {
+    rankings[hash].names.push(name);
+  }
+  // Keep sessionRankings in sync
+  sessionRankings[hash] = rankings[hash];
+  return rankings[hash];
+}
+
+// ── MATCHMAKING ───────────────────────────────────────────────────────
+async function ensureHashed(idx, startElo) {
+  const f = allFiles[idx];
+  if (f.hash) return f.hash;
+  try {
+    const h = await fullHash(f.handle);
+    f.hash = h;
+    ensureRankingEntry(h, f.name, startElo);
+    return h;
+  } catch(e) {
+    console.warn('Could not hash file:', f.name, e);
+    return null;
+  }
+}
+
+function pickContender(excludeHash) {
+  const refElo = excludeHash ? (rankings[excludeHash]?.elo ?? INITIAL_ELO) : null;
+
+  const scored = allFiles
+    .map((f, i) => ({ f, i }))
+    .filter(({ f }) => f.hash && f.hash !== excludeHash)
+    .map(({ f, i }) => {
+      const r = rankings[f.hash] || { matches: 0, elo: INITIAL_ELO };
+      const eloDist = refElo !== null ? Math.abs(r.elo - refElo) : 0;
+      // Fewer battles = higher priority. Elo proximity is a weak tiebreaker.
+      // /40000 keeps the Elo penalty tiny (~0.02 max) vs the battle-count term (~0–1).
+      const score = 1 / (r.matches + 1)
+                  - eloDist / 40000
+                  + Math.random() * 0.05; // jitter prevents always picking same file
+      return { i, score };
+    });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].i;
+}
+
+function pickOpponentForWinner(excludeHash) {
+  // Elo proximity is primary — the winner deserves a worthy opponent
+  const refElo = rankings[excludeHash]?.elo ?? INITIAL_ELO;
+  const scored = allFiles
+    .map((f, i) => ({ f, i }))
+    .filter(({ f }) => f.hash && f.hash !== excludeHash)
+    .map(({ f, i }) => {
+      const r = rankings[f.hash] || { matches: 0, elo: INITIAL_ELO };
+      const eloDist = Math.abs(r.elo - refElo);
+      // Elo proximity dominates (raw point difference). Battle-count nudge is
+      // scaled to 0–50 so a 50-point Elo gap still beats a fresh file.
+      const score = -eloDist + (1 / (r.matches + 1)) * 50 + Math.random() * 30;
+      return { i, score };
+    });
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].i;
+}
+
+function pickContenders() {
+  // If any duplicate pairs exist, always show one of them
+  if (hashesWithDuplicates.size > 0) {
+    // Pick a random dupe group
+    const dupeHash = [...hashesWithDuplicates][Math.floor(Math.random() * hashesWithDuplicates.size)];
+    const idxs = dupeHashToFileIndices[dupeHash];
+    // Pick two random members of that group
+    const shuffled = idxs.slice().sort(() => Math.random() - 0.5);
+    return [shuffled[0], shuffled[1]];
+  }
+  // No dupes — pick normally
+  const leftIdx = pickContender(null);
+  const rightIdx = pickContender(allFiles[leftIdx].hash);
+  return [leftIdx, rightIdx];
+}
+
+// ── AUDIO ─────────────────────────────────────────────────────────────
+let audioCtx = null;
+let leftAudioState  = { on: false, source: null, panner: null, vid: null };
+let rightAudioState = { on: false, source: null, panner: null, vid: null };
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+// ── SOUND EFFECTS ─────────────────────────────────────────────────────
+function playChime(type) {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+
+    if (type === 'win') {
+      // Bright ascending two-note chime: C5 then E5
+      const notes = [523.25, 659.25];
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, now + i * 0.12);
+        gain.gain.linearRampToValueAtTime(0.22, now + i * 0.12 + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.45);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + i * 0.12);
+        osc.stop(now + i * 0.12 + 0.5);
+      });
+    } else {
+      // Dull descending thud: low sine with quick decay
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.18);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    }
+  } catch(e) { /* audio not available */ }
+}
+
+function ensureSourceNode(state) {
+  if (state.source) return true; // already created
+  if (!state.vid) return false;
+  try {
+    const ctx = getAudioCtx();
+    state.source = ctx.createMediaElementSource(state.vid);
+    state.panner = ctx.createStereoPanner();
+    state.source.connect(state.panner);
+    // Always connect to destination — muting is done via vid.muted, not by disconnecting
+    state.panner.connect(ctx.destination);
+    return true;
+  } catch(e) {
+    console.warn('AudioContext source creation failed:', e);
+    return false;
+  }
+}
+
+function rebalancePanning() {
+  const bothOn = leftAudioState.on && rightAudioState.on;
+  for (const [state, side] of [[leftAudioState, 'left'], [rightAudioState, 'right']]) {
+    if (state.panner) state.panner.pan.value = (bothOn && state.on) ? (side === 'left' ? -1 : 1) : 0;
+    if (state.vid) state.vid.muted = !state.on;
+  }
+}
+
+function updateAudioIcon(side, on) {
+  const btn = document.getElementById(`audio-btn-${side}`);
+  btn.querySelectorAll('.audio-waves').forEach(el => el.style.display = on ? '' : 'none');
+  btn.querySelectorAll('.audio-cross').forEach(el => el.setAttribute('display', on ? 'none' : ''));
+}
+
+function toggleAudio(side) {
+  const state = side === 'left' ? leftAudioState : rightAudioState;
+  state.on = !state.on;
+  document.getElementById(`audio-btn-${side}`).classList.toggle('on', state.on);
+  updateAudioIcon(side, state.on);
+  if (state.on) ensureSourceNode(state);
+  rebalancePanning();
+  saveAudioPrefs();
+}
+
+async function saveAudioPrefs() {
+  try { await dbSet('audioPrefs', { left: leftAudioState.on, right: rightAudioState.on }); } catch(e) {}
+}
+
+async function loadAudioPrefs() {
+  try {
+    const prefs = await dbGet('audioPrefs');
+    if (prefs) {
+      leftAudioState.on  = prefs.left  || false;
+      rightAudioState.on = prefs.right || false;
+    }
+  } catch(e) {}
+}
+
+function setupVideoAudio(vid, side) {
+  const btn = document.getElementById(`audio-btn-${side}`);
+  const state = side === 'left' ? leftAudioState : rightAudioState;
+  // Reset source/panner — new video element requires new source node
+  state.source = null;
+  state.panner = null;
+  state.vid = vid;
+  vid.muted = true;
+
+  // Handle looping manually so Web Audio graph doesn't break it
+  vid.loop = false;
+  vid.addEventListener('ended', () => {
+    vid.currentTime = 0;
+    vid.play().catch(() => {});
+  });
+
+  btn.classList.add('visible');
+  btn.classList.toggle('on', state.on);
+  updateAudioIcon(side, state.on);
+
+  if (state.on) {
+    vid.addEventListener('canplay', () => {
+      ensureSourceNode(state);
+      rebalancePanning();
+    }, { once: true });
+  }
+}
+
+function hideAudioBtn(side) {
+  const btn = document.getElementById(`audio-btn-${side}`);
+  btn.classList.remove('visible', 'on');
+  const state = side === 'left' ? leftAudioState : rightAudioState;
+  state.source = null;
+  state.panner = null;
+  state.vid = null;
+}
+
+// ── MEDIA DISPLAY ─────────────────────────────────────────────────────
+function revokeURLs() {
+  if (leftURL) { URL.revokeObjectURL(leftURL); leftURL = null; }
+  if (rightURL) { URL.revokeObjectURL(rightURL); rightURL = null; }
+}
+
+async function renderMedia(fileEntry, wrapEl, nameEl, eloEl, side) {
+  wrapEl.innerHTML = '';
+  nameEl.textContent = fileEntry.name;
+  eloEl.textContent = rankings[fileEntry.hash]?.elo ?? INITIAL_ELO;
+  const posEl = document.getElementById(side === 'left' ? 'left-pos' : 'right-pos');
+  if (posEl) posEl.textContent = getRankPosition(fileEntry.hash);
+
+  const file = await fileEntry.handle.getFile();
+  const url = URL.createObjectURL(file);
+
+  if (VIDEO_EXTS.has(fileEntry.ext)) {
+    const vid = document.createElement('video');
+    vid.src = url;
+    vid.autoplay = true;
+    vid.loop = true;
+    vid.muted = true;
+    vid.playsInline = true;
+    wrapEl.appendChild(vid);
+    setupVideoAudio(vid, side);
+  } else {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = fileEntry.name;
+    wrapEl.appendChild(img);
+    hideAudioBtn(side);
+  }
+  return url;
+}
+
+// ── WINNER STAYS ──────────────────────────────────────────────────────
+let winnerStays = false;
+let winnerStaysHash = null;
+let winnerStaysSide = 'left'; // which side the winner stays on
+
+function isRankOne(hash) {
+  const elos = Object.values(sessionRankings).map(r => r.elo);
+  const max = Math.max(...elos);
+  return sessionRankings[hash]?.elo >= max;
+}
+
+function playToggleSound(on) {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(on ? 440 : 660, now);
+    osc.frequency.linearRampToValueAtTime(on ? 660 : 330, now + 0.18);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.28);
+  } catch(e) {}
+}
+
+function toggleWinnerStays() {
+  winnerStays = !winnerStays;
+  winnerStaysHash = null;
+  document.getElementById('winner-stays-checkbox').checked = winnerStays;
+  playToggleSound(winnerStays);
+  saveUIPrefs();
+}
+
+async function saveUIPrefs() {
+  try {
+    await dbSet('uiPrefs', {
+      thumbSize: lbThumbSize,
+      perPage: lbPerPage,
+      winnerStays,
+    });
+  } catch(e) {}
+}
+
+async function loadUIPrefs() {
+  try {
+    const p = await dbGet('uiPrefs');
+    if (!p) return;
+    if (p.thumbSize) {
+      lbThumbSize = p.thumbSize;
+      const slider = document.getElementById('lb-thumb-size');
+      slider.value = lbThumbSize;
+      document.getElementById('lb-thumb-label').textContent = lbThumbSize + 'px';
+    }
+    if (p.perPage) {
+      lbPerPage = p.perPage;
+      const sel = document.getElementById('lb-per-page');
+      sel.value = lbPerPage;
+    }
+    if (p.winnerStays) {
+      winnerStays = true;
+      const cb = document.getElementById('winner-stays-checkbox');
+      if (cb) cb.checked = true;
+    }
+  } catch(e) {}
+}
+
+// ── BATTLE FLOW ───────────────────────────────────────────────────────
+let isLoadingBattle = false;
+async function loadNextBattle() {
+  showLoading(true);
+  revokeURLs();
+
+  try {
+    let leftIdx, rightIdx;
+
+    if (winnerStays && winnerStaysHash && !isRankOne(winnerStaysHash)) {
+      const winnerIdx = allFiles.findIndex(f => f.hash === winnerStaysHash);
+      if (winnerIdx >= 0) {
+        const opponentIdx = pickOpponentForWinner(winnerStaysHash);
+        // Winner stays on their side, opponent goes to the other
+        if (winnerStaysSide === 'left') {
+          leftIdx = winnerIdx;
+          rightIdx = opponentIdx;
+        } else {
+          rightIdx = winnerIdx;
+          leftIdx = opponentIdx;
+        }
+      } else {
+        winnerStaysHash = null;
+        [leftIdx, rightIdx] = pickContenders();
+      }
+    } else {
+      if (winnerStaysHash && isRankOne(winnerStaysHash)) winnerStaysHash = null;
+      [leftIdx, rightIdx] = pickContenders();
+    }
+    leftHash = await ensureHashed(leftIdx);
+    leftFile = allFiles[leftIdx];
+
+    rightHash = await ensureHashed(rightIdx);
+    rightFile = allFiles[rightIdx];
+
+    leftURL = await renderMedia(leftFile, document.getElementById('left-media-wrap'),
+      document.getElementById('left-name'), document.getElementById('left-elo'), 'left');
+    rightURL = await renderMedia(rightFile, document.getElementById('right-media-wrap'),
+      document.getElementById('right-name'), document.getElementById('right-elo'), 'right');
+
+    document.getElementById('battle-count').textContent = battleCount;
+    document.getElementById('file-count-label').textContent = allFiles.length + ' files';
+    document.getElementById('battle-count-bar').style.display = 'flex';
+    updateDupeBanner();
+
+    // Ensure AudioContext is running and explicitly play all videos
+    if (audioCtx) audioCtx.resume().catch(() => {});
+    document.querySelectorAll('#battle-area video').forEach(v => {
+      v.play().catch(() => {});
+    });
+  } catch(e) {
+    console.error(e);
+  }
+  showLoading(false);
+}
+
+function getRankPosition(hash) {
+  const sorted = Object.values(sessionRankings)
+    .filter(r => r.matches > 0)
+    .sort((a, b) => b.elo - a.elo);
+  const idx = sorted.findIndex(r => r.hash === hash);
+  if (idx === -1) return '—';
+  return `#${idx + 1}/${sorted.length}`;
+}
+
+function updateContenderFooter(side, hash) {
+  const eloEl = document.getElementById(`${side}-elo`);
+  const posEl = document.getElementById(`${side}-pos`);
+  eloEl.textContent = rankings[hash]?.elo ?? INITIAL_ELO;
+  posEl.textContent = getRankPosition(hash);
+}
+
+function calcDeltas(winnerHash, loserHash) {
+  const winnerElo      = rankings[winnerHash]?.elo     ?? INITIAL_ELO;
+  const loserElo       = rankings[loserHash]?.elo      ?? INITIAL_ELO;
+  const winnerMatches  = rankings[winnerHash]?.matches ?? 0;
+  const loserMatches   = rankings[loserHash]?.matches  ?? 0;
+  const winnerExpected = expectedScore(winnerElo, loserElo);
+  return {
+    winnerDelta:  Math.round(kFactor(winnerMatches) * (1 - winnerExpected)),
+    loserDelta:  -Math.round(kFactor(loserMatches)  * (1 - winnerExpected)),
+  };
+}
+
+function showScorePreview(side) {
+  if (isLoadingBattle || isDupePair) return;
+  const winnerHash = side === 'left' ? leftHash : rightHash;
+  const loserHash  = side === 'left' ? rightHash : leftHash;
+  if (!winnerHash || !loserHash) return;
+
+  const { winnerDelta, loserDelta } = calcDeltas(winnerHash, loserHash);
+
+  for (const [el, delta] of [
+    [document.getElementById('left-contender'),  side === 'left' ? winnerDelta : loserDelta],
+    [document.getElementById('right-contender'), side === 'right' ? winnerDelta : loserDelta],
+  ]) {
+    let preview = el.querySelector('.score-preview');
+    if (!preview) {
+      preview = document.createElement('div');
+      el.appendChild(preview);
+    }
+    preview.className = 'score-preview ' + (delta >= 0 ? 'positive' : 'negative');
+    preview.textContent = (delta >= 0 ? '+' : '') + delta;
+  }
+}
+
+function hideScorePreview() {
+  document.querySelectorAll('.score-preview').forEach(el => el.remove());
+}
+
+document.getElementById('left-contender').addEventListener('mouseenter', () => showScorePreview('left'));
+document.getElementById('left-contender').addEventListener('mouseleave', hideScorePreview);
+document.getElementById('right-contender').addEventListener('mouseenter', () => showScorePreview('right'));
+document.getElementById('right-contender').addEventListener('mouseleave', hideScorePreview);
+
+async function pick(side) {
+  if (isLoadingBattle) return;
+  isLoadingBattle = true;
+  document.getElementById('back-btn').disabled = true;
+  hideScorePreview();
+  const winnerHash = side === 'left' ? leftHash : rightHash;
+  const loserHash  = side === 'left' ? rightHash : leftHash;
+  const winnerEl   = side === 'left' ? document.getElementById('left-contender') : document.getElementById('right-contender');
+
+  updateElo(winnerHash, loserHash);
+  battleCount++;
+
+  updateContenderFooter(side === 'left' ? 'left' : 'right', winnerHash);
+  updateContenderFooter(side === 'left' ? 'right' : 'left', loserHash);
+
+  playChime('win');
+  playChime('lose');
+
+  winnerEl.classList.add('winner-flash');
+  setTimeout(() => winnerEl.classList.remove('winner-flash'), 400);
+
+  try {
+    await autoSave();
+    if (winnerStays) {
+      winnerStaysHash = winnerHash;
+      winnerStaysSide = side;
+    }
+    await loadNextBattle();
+  } finally {
+    isLoadingBattle = false;
+    document.getElementById('back-btn').disabled = false;
+  }
+}
+
+async function skip() {
+  if (isLoadingBattle) return;
+  isLoadingBattle = true;
+  document.getElementById('back-btn').disabled = true;
+  hideScorePreview();
+  winnerStaysHash = null;
+  document.getElementById('dupe-banner').classList.remove('show');
+  isDupePair = false;
+  try {
+    await loadNextBattle();
+  } finally {
+    isLoadingBattle = false;
+    document.getElementById('back-btn').disabled = false;
+  }
+}
+
+// ── SAVE ──────────────────────────────────────────────────────────────
+async function saveJson() {
+  if (!jsonFileHandle) return;
+  if (Object.keys(rankings).length === 0) return; // never overwrite with empty data
+  try {
+    const writable = await jsonFileHandle.createWritable();
+    const data = { battleCount, rankings };
+    await writable.write(JSON.stringify(data, null, 2));
+    await writable.close();
+  } catch(e) { console.error('Save failed', e); }
+}
+
+let backupDirHandle = null;
+
+async function saveBackup() {
+  if (!backupDirHandle) return;
+  if (Object.keys(rankings).length === 0) return;
+  try {
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+    const backupName = `media-rankings-backup-${ts}.json`;
+    const fh = await backupDirHandle.getFileHandle(backupName, { create: true });
+    const writable = await fh.createWritable();
+    const data = { battleCount, rankings };
+    await writable.write(JSON.stringify(data, null, 2));
+    await writable.close();
+    console.log('Backup saved:', backupName);
+  } catch(e) { console.warn('Backup failed:', e); }
+}
+
+let backupInterval = null;
+
+function startBackupTimer() {
+  if (backupInterval) clearInterval(backupInterval);
+  backupInterval = setInterval(saveBackup, 2 * 60 * 1000);
+}
+
+function stopBackupTimer() {
+  if (backupInterval) { clearInterval(backupInterval); backupInterval = null; }
+}
+
+async function autoSave() {
+  await saveJson();
+}
+
+// URLs for lightbox opening from the leaderboard — rebuilt on each render
+let lbOpenURLs = [];
+let lbPage = 0;
+let lbThumbSize = 100;
+let lbPerPage = 20;
+const lbThumbURLs = []; // object URLs created for lb thumbnails, revoked on re-render
+
+document.getElementById('lb-thumb-size').oninput = function() {
+  lbThumbSize = +this.value;
+  document.getElementById('lb-thumb-label').textContent = lbThumbSize + 'px';
+  document.querySelectorAll('#lb-content .lb-thumb-wrap img, #lb-content .lb-thumb-wrap video').forEach(el => {
+    el.style.maxWidth = lbThumbSize + 'px';
+  });
+  saveUIPrefs();
+};
+document.getElementById('lb-per-page').onchange = function() {
+  lbPerPage = +this.value;
+  lbPage = 0;
+  saveUIPrefs();
+  renderLeaderboard();
+};
+
+function revokeLbURLs() {
+  lbThumbURLs.forEach(u => URL.revokeObjectURL(u));
+  lbThumbURLs.length = 0;
+}
+
+// Build hash -> fileEntry lookup
+function hashToFile(hash) {
+  return allFiles.find(f => f.hash === hash) || null;
+}
+
+function nameToFile(name) {
+  return allFiles.find(f => f.name === name) || null;
+}
+
+function rankingToFile(r) {
+  const names = r.names || (r.name ? [r.name] : []);
+  for (const name of names) {
+    const f = nameToFile(name);
+    if (f) return f;
+  }
+  return hashToFile(r.hash);
+}
+
+async function deleteRankingEntry(hash) {
+  const entry = rankings[hash];
+  if (!entry) return;
+  const names = (entry.names || [entry.name]).join(', ');
+  if (!confirm(`Remove "${names}" from the database?\n\nThis deletes its ranking history but does NOT delete the file from disk.\n\nIt will be re-added next time you start ranking.`)) return;
+  delete rankings[hash];
+  delete sessionRankings[hash];
+  await saveJson();
+  renderLeaderboard();
+}
+
+let lbSearch = '';
+
+function wildcardMatch(str, pattern) {
+  if (!pattern) return true;
+  // Convert wildcard pattern to regex: * -> .*, ? -> .
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
+  return new RegExp('^' + escaped + '$', 'i').test(str);
+}
+
+function matchesSearch(r) {
+  if (!lbSearch) return true;
+  const names = r.names || (r.name ? [r.name] : []);
+  // If no wildcards, do a simple substring match; with wildcards, do full wildcard match
+  if (!lbSearch.includes('*') && !lbSearch.includes('?')) {
+    return names.some(n => n.toLowerCase().includes(lbSearch.toLowerCase()));
+  }
+  return names.some(n => wildcardMatch(n, lbSearch));
+}
+
+document.getElementById('lb-search').oninput = function() {
+  lbSearch = this.value;
+  lbPage = 0;
+  renderLeaderboard();
+};
+
+async function renderLeaderboard() {
+  revokeLbURLs();
+  lbOpenURLs = [];
+
+  // Only show files present in this session, filtered by search
+  const all = Object.values(sessionRankings).filter(matchesSearch).sort((a, b) => {
+    const aName = (a.names && a.names[0]) || a.name || '';
+    const bName = (b.names && b.names[0]) || b.name || '';
+    if (a.matches === 0 && b.matches === 0) return aName.localeCompare(bName);
+    if (a.matches === 0) return 1;
+    if (b.matches === 0) return -1;
+    return b.elo - a.elo;
+  });
+
+  const content = document.getElementById('lb-content');
+
+  if (all.length === 0) {
+    content.innerHTML = '<div class="empty-state">no files found — check folder selection</div>';
+    document.getElementById('lb-pagination').innerHTML = '';
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(all.length / lbPerPage));
+  if (lbPage >= totalPages) lbPage = totalPages - 1;
+  const pageItems = all.slice(lbPage * lbPerPage, (lbPage + 1) * lbPerPage);
+  const medals = ['🥇','🥈','🥉'];
+  const battledCount = all.filter(r => r.matches > 0).length;
+
+  const rows = await Promise.all(pageItems.map(async (r, i) => {
+    const globalRank = lbPage * lbPerPage + i;
+    const hasBattled = r.matches > 0;
+    const rankLabel = !hasBattled ? '—' : (globalRank < 3 ? medals[globalRank] : '#' + (globalRank + 1));
+    const winRate = r.matches ? Math.round(r.wins / r.matches * 100) : 0;
+    const metaText = !hasBattled ? 'not yet battled' : `${r.matches} battles · ${winRate}% wins`;
+    const rowClass = !hasBattled ? 'lb-row lb-unranked' : 'lb-row';
+
+    const allNames = (r.names || [r.name]).join(', ');
+    const fileEntry = rankingToFile(r);
+    let thumbHTML = `<div class="lb-no-preview">no<br>preview</div>`;
+    let clickAttr = '';
+
+    if (fileEntry) {
+      try {
+        const file = await fileEntry.handle.getFile();
+        const url = URL.createObjectURL(file);
+        lbThumbURLs.push(url);
+        const idx = lbOpenURLs.length;
+        lbOpenURLs.push({ url, ext: fileEntry.ext });
+        clickAttr = `onclick="openLightboxIdx(${idx})"`;
+        if (VIDEO_EXTS.has(fileEntry.ext)) {
+          thumbHTML = `<video src="${url}" autoplay loop muted playsinline style="max-width:${lbThumbSize}px;object-fit:contain;border-radius:6px;display:block;"></video>`;
+        } else {
+          thumbHTML = `<img src="${url}" alt="" style="max-width:${lbThumbSize}px;object-fit:contain;border-radius:6px;display:block;">`;
+        }
+      } catch(e) {}
+    }
+
+    return `<div class="${rowClass}">
+      <div class="lb-rank">${rankLabel}</div>
+      <div class="lb-thumb-wrap" ${clickAttr}>${thumbHTML}</div>
+      <div class="lb-info">
+        <div class="lb-fname" title="${allNames}">${allNames}</div>
+        <div class="lb-meta">${metaText}</div>
+      </div>
+      <div class="lb-elo-badge">${hasBattled ? 'score: ' + r.elo : '—'}</div>
+      <button class="lb-delete-btn" onclick="deleteRankingEntry('${r.hash}')" title="Remove from database">×</button>
+    </div>`;
+  }));
+
+  content.innerHTML = `<div class="lb-grid">${rows.join('')}</div>`;
+
+  // Pagination
+  const pagination = document.getElementById('lb-pagination');
+  if (totalPages <= 1) { pagination.innerHTML = ''; return; }
+  const atFirst = lbPage === 0, atLast = lbPage >= totalPages - 1;
+  pagination.innerHTML =
+    `<button class="lb-page-btn" onclick="lbPage=0;renderLeaderboard()" ${atFirst?'disabled':''}>«</button>` +
+    `<button class="lb-page-btn" onclick="lbPage--;renderLeaderboard()" ${atFirst?'disabled':''}>‹</button>` +
+    `<span style="color:var(--text2);font-size:1.4rem;padding:0 0.25rem;">${lbPage+1} / ${totalPages} &nbsp;·&nbsp; ${battledCount} battled, ${all.length - battledCount} pending</span>` +
+    `<button class="lb-page-btn" onclick="lbPage++;renderLeaderboard()" ${atLast?'disabled':''}>›</button>` +
+    `<button class="lb-page-btn" onclick="lbPage=${totalPages-1};renderLeaderboard()" ${atLast?'disabled':''}>»</button>`;
+}
+
+function pauseBattleVideos() {
+  document.querySelectorAll('#battle-area video').forEach(v => v.pause());
+}
+
+function resumeBattleVideos() {
+  if (audioCtx) audioCtx.resume().catch(() => {});
+  document.querySelectorAll('#battle-area video').forEach(v => v.play().catch(() => {}));
+}
+
+// ── TAB SWITCHING ─────────────────────────────────────────────────────
+function showTab(tab) {
+  document.getElementById('tab-battle').classList.toggle('active', tab==='battle');
+  document.getElementById('tab-lb').classList.toggle('active', tab==='lb');
+  document.getElementById('battle-area-wrap').style.display = tab==='battle' ? 'flex' : 'none';
+  document.getElementById('leaderboard-screen').style.display = tab==='lb' ? 'flex' : 'none';
+  document.getElementById('dupe-banner').classList.toggle('show', tab==='battle' && isDupePair);
+  document.getElementById('battle-count-bar').style.display = tab==='battle' ? 'flex' : 'none';
+  if (tab === 'battle') resumeBattleVideos();
+  else pauseBattleVideos();
+  if (tab === 'lb') renderLeaderboard();
+}
+
+// ── LIGHTBOX ──────────────────────────────────────────────────────────
+let lightboxVideoEl = null;
+
+function openLightboxIdx(idx) {
+  const entry = lbOpenURLs[idx];
+  if (entry) openLightbox(entry.url, entry.ext);
+}
+
+function openLightbox(url, ext) {
+  const inner = document.getElementById('lightbox-inner');
+  inner.innerHTML = '';
+  if (VIDEO_EXTS.has(ext)) {
+    const vid = document.createElement('video');
+    vid.src = url;
+    vid.autoplay = true;
+    vid.loop = true;
+    vid.muted = true;
+    vid.controls = true;
+    vid.playsInline = true;
+    inner.appendChild(vid);
+    lightboxVideoEl = vid;
+  } else {
+    const img = document.createElement('img');
+    img.src = url;
+    inner.appendChild(img);
+    lightboxVideoEl = null;
+  }
+  document.getElementById('lightbox').classList.add('show');
+  document.getElementById('lightbox-close').style.display = 'block';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('show');
+  document.getElementById('lightbox-close').style.display = 'none';
+  if (lightboxVideoEl) { lightboxVideoEl.pause(); lightboxVideoEl = null; }
+  document.getElementById('lightbox-inner').innerHTML = '';
+}
+
+// ── KEYBOARD ──────────────────────────────────────────────────────────
+let isCinematic = false;
+
+function togglePause() {
+  const videos = [...document.querySelectorAll('#battle-area video')];
+  const anyPlaying = videos.some(v => !v.paused);
+  videos.forEach(v => anyPlaying ? v.pause() : v.play().catch(() => {}));
+}
+
+function toggleFullscreen() {
+  isCinematic = !isCinematic;
+  document.body.classList.toggle('cinematic', isCinematic);
+  if (isCinematic) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  // Ignore if focus is in a text input
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'Escape') {
+    if (isCinematic) { isCinematic = false; document.body.classList.remove('cinematic'); }
+    closeLightbox();
+    return;
+  }
+  if (document.getElementById('battle-screen').style.display === 'none') return;
+  if (e.key === 'f' || e.key === 'F') { e.preventDefault(); toggleFullscreen(); return; }
+  if (e.key === 'r' || e.key === 'R') { e.preventDefault(); showTab('lb'); return; }
+  if (e.key === 'b' || e.key === 'B') { e.preventDefault(); showTab('battle'); return; }
+  const onBattleTab = document.getElementById('battle-area-wrap').style.display !== 'none';
+  if (!onBattleTab) return;
+  if (e.key === 'w' || e.key === 'W') { e.preventDefault(); toggleWinnerStays(); return; }
+  if (e.key === ' ') {
+    e.preventDefault();
+    togglePause();
+    return;
+  }
+  if (e.key === 'm' || e.key === 'M') {
+    e.preventDefault();
+    // Toggle both audio buttons — if either is on, turn both off; if both off, turn both on
+    const anyOn = leftAudioState.on || rightAudioState.on;
+    ['left', 'right'].forEach(side => {
+      const state = side === 'left' ? leftAudioState : rightAudioState;
+      const btn = document.getElementById(`audio-btn-${side}`);
+      if (btn.classList.contains('visible') && state.on !== !anyOn) {
+        state.on = !anyOn;
+        btn.classList.toggle('on', state.on);
+        updateAudioIcon(side, state.on);
+        if (state.on) ensureSourceNode(state);
+      }
+    });
+    rebalancePanning();
+    saveAudioPrefs();
+    return;
+  }
+  if (e.key === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') { e.preventDefault(); isDupePair ? deleteDupe('left')  : pick('left');  }
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { e.preventDefault(); isDupePair ? deleteDupe('right') : pick('right'); }
+  if (e.key === 'ArrowUp'    || e.key === 's' || e.key === 'S') { e.preventDefault(); skip(); }
+});
+
+// ── NAVIGATION ────────────────────────────────────────────────────────
+startBtn.onclick = async () => {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('battle-screen').style.display = 'flex';
+  document.getElementById('tab-battle').classList.add('active');
+  showLoading(true);
+  // Compute average Elo of currently competing files before adding new ones
+  const startElo = currentPoolAverage();
+  for (let i = 0; i < allFiles.length; i++) {
+    await ensureHashed(i, startElo);
+  }
+  // Build sessionRankings: only entries whose hash is in this session's allFiles
+  sessionRankings = {};
+  for (const f of allFiles) {
+    if (f.hash && rankings[f.hash]) sessionRankings[f.hash] = rankings[f.hash];
+  }
+  rebuildDupeMap();
+  await saveJson();
+  startBackupTimer();
+  showLoading(false);
+  await loadNextBattle();
+};
+
+document.getElementById('back-btn').onclick = async () => {
+  pauseBattleVideos();
+  stopBackupTimer();
+  await saveJson();
+  revokeURLs();
+  revokeLbURLs();
+  sessionRankings = {};
+  document.getElementById('dupe-banner').classList.remove('show');
+  isDupePair = false;
+  document.getElementById('battle-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
+  // Reset tab state
+  document.getElementById('battle-area-wrap').style.display = 'flex';
+  document.getElementById('leaderboard-screen').style.display = 'none';
+  document.getElementById('tab-battle').classList.remove('active');
+  document.getElementById('tab-lb').classList.remove('active');
+  updateSetupStats();
+};
+
+// ── TOOLTIP ───────────────────────────────────────────────────────────
+const tooltipEl = document.getElementById('tooltip');
+let tooltipTimer = null;
+
+document.addEventListener('mouseover', e => {
+  const target = e.target.closest('[data-tip]');
+  if (!target) return;
+  clearTimeout(tooltipTimer);
+  tooltipTimer = setTimeout(() => {
+    tooltipEl.textContent = target.dataset.tip;
+    tooltipEl.style.display = 'block';
+    positionTooltip(e);
+  }, 400);
+});
+
+document.addEventListener('mousemove', e => {
+  if (tooltipEl.style.display === 'block') positionTooltip(e);
+});
+
+document.addEventListener('mouseout', e => {
+  const target = e.target.closest('[data-tip]');
+  if (!target) return;
+  clearTimeout(tooltipTimer);
+  tooltipEl.style.display = 'none';
+});
+
+function positionTooltip(e) {
+  const pad = 12;
+  let x = e.clientX + pad;
+  let y = e.clientY - tooltipEl.offsetHeight - pad;
+  if (x + tooltipEl.offsetWidth > window.innerWidth - 8) x = e.clientX - tooltipEl.offsetWidth - pad;
+  if (y < 8) y = e.clientY + pad;
+  tooltipEl.style.left = x + 'px';
+  tooltipEl.style.top  = y + 'px';
+}
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && isCinematic) {
+    isCinematic = false;
+    document.body.classList.remove('cinematic');
+  }
+});
+
+loadSavedHandles();
+loadAudioPrefs();
+loadUIPrefs();
+</script>
+</body>
+</html>
