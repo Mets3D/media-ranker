@@ -1249,11 +1249,9 @@ function showLoading(v) {
 let dupeHashToFileIndices = {}; // fullHash -> [idx, ...] for dupe detection
 let hashesWithDuplicates = new Set(); // fullHashes that have 2+ files
 
-async function fullHash(fileHandle) {
+async function fileKey(fileHandle) {
   const file = await fileHandle.getFile();
-  const buf = await file.arrayBuffer();
-  const hashBuf = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  return `${file.size}_${file.lastModified}`;
 }
 
 function areDupes(idxA, idxB) {
@@ -1380,12 +1378,12 @@ async function ensureHashed(idx, startElo) {
   const f = allFiles[idx];
   if (f.hash) return f.hash;
   try {
-    const h = await fullHash(f.handle);
-    f.hash = h;
-    ensureRankingEntry(h, f.name, startElo);
-    return h;
+    const key = await fileKey(f.handle);
+    f.hash = key;
+    ensureRankingEntry(key, f.name, startElo);
+    return key;
   } catch(e) {
-    console.warn('Could not hash file:', f.name, e);
+    console.warn('Could not key file:', f.name, e);
     return null;
   }
 }
