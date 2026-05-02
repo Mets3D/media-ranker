@@ -616,6 +616,119 @@
   }
   #lightbox-close:hover { color: var(--text2); }
 
+  /* ── MARKERS ─────────────────────────────────────────────────────── */
+  .marker-wrap {
+    display: none;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.3rem 0.75rem 0.4rem;
+    border-top: 0.5px solid var(--border);
+    flex-shrink: 0;
+  }
+  #battle-area.video-controls-on .marker-wrap { display: flex; }
+  #lightbox-marker-wrap {
+    position: fixed;
+    bottom: 2.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(90vw, 860px);
+    background: rgba(14,14,15,0.92);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.5rem 1rem 0.6rem;
+    backdrop-filter: blur(10px);
+    z-index: 210;
+    display: none;
+  }
+  #lightbox-marker-wrap.show { display: flex; }
+  .marker-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .marker-name-label {
+    font-family: var(--ui);
+    font-size: 1.1rem;
+    color: var(--accent);
+    margin-left: 0.4rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+  .marker-count-label {
+    font-family: var(--ui);
+    font-size: 1.1rem;
+    color: var(--text3);
+    margin-left: auto;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .marker-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 0.5px solid transparent;
+    border-radius: 5px;
+    color: var(--text2);
+    cursor: pointer;
+    padding: 0.18rem 0.4rem;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .marker-btn:hover { color: var(--text); border-color: var(--border2); }
+  .marker-track {
+    position: relative;
+    height: 5px;
+    background: var(--bg3);
+    border-radius: 3px;
+    cursor: pointer;
+    overflow: visible;
+  }
+  .marker-progress {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: var(--text3);
+    border-radius: 3px;
+    pointer-events: none;
+    width: 0;
+  }
+  .marker-dot {
+    position: absolute;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    transform: translate(-50%, -50%);
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 2;
+    transition: transform 0.12s;
+  }
+  .marker-dot:hover { transform: translate(-50%, -50%) scale(1.5); }
+  .marker-dot.marker-start { background: var(--green); }
+  .marker-dot.marker-skip  { background: var(--red); }
+  .marker-dot .marker-tip {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg3);
+    border: 0.5px solid var(--border2);
+    border-radius: 4px;
+    padding: 0.15rem 0.45rem;
+    font-family: var(--ui);
+    font-size: 1.1rem;
+    color: var(--text);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+  .marker-dot:hover .marker-tip { opacity: 1; }
+
   .lb-page-btn {
     background: var(--bg3);
     border: 0.5px solid var(--border2);
@@ -785,6 +898,19 @@
     <div id="lightbox-inner" onclick="event.stopPropagation()"></div>
     <div id="lightbox-close" onclick="closeLightbox()">esc to close</div>
   </div>
+  <div id="lightbox-marker-wrap" class="marker-wrap" onclick="event.stopPropagation()">
+    <div class="marker-controls">
+      <button class="marker-btn" onclick="jumpMarker('lightbox',-1)" title="Previous marker [,]"><svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="1.5" y="1.5" width="2" height="11" rx="1"/><path d="M12 7L5.5 3.5v7z"/></svg></button>
+      <button class="marker-btn" onclick="addMarkerNow('lightbox')" title="Add marker [K]"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><line x1="3.5" y1="1.5" x2="3.5" y2="12.5"/><path d="M3.5 2h8L9 5.5l2.5 3.5H3.5"/></svg></button>
+      <button class="marker-btn" onclick="jumpMarker('lightbox',1)" title="Next marker [.]"><svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="10.5" y="1.5" width="2" height="11" rx="1"/><path d="M2 7L8.5 3.5v7z"/></svg></button>
+      <span class="marker-name-label" id="lightbox-marker-name"></span>
+      <span class="marker-count-label" id="lightbox-marker-count"></span>
+    </div>
+    <div class="marker-track" id="lightbox-marker-track" onclick="markerSeek(event,'lightbox')">
+      <div class="marker-progress" id="lightbox-marker-progress"></div>
+      <div id="lightbox-marker-dots"></div>
+    </div>
+  </div>
 
   <!-- SETUP SCREEN -->
   <div id="setup-screen">
@@ -891,6 +1017,19 @@
               </button>
             </div>
             <div class="contender-inner" id="left-media-wrap"></div>
+            <div class="marker-wrap" id="left-marker-wrap">
+              <div class="marker-controls">
+                <button class="marker-btn" onclick="event.stopPropagation();jumpMarker('left',-1)" title="Previous marker"><svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="1.5" y="1.5" width="2" height="11" rx="1"/><path d="M12 7L5.5 3.5v7z"/></svg></button>
+                <button class="marker-btn" onclick="event.stopPropagation();addMarkerNow('left')" title="Add marker"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><line x1="3.5" y1="1.5" x2="3.5" y2="12.5"/><path d="M3.5 2h8L9 5.5l2.5 3.5H3.5"/></svg></button>
+                <button class="marker-btn" onclick="event.stopPropagation();jumpMarker('left',1)" title="Next marker"><svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="10.5" y="1.5" width="2" height="11" rx="1"/><path d="M2 7L8.5 3.5v7z"/></svg></button>
+                <span class="marker-name-label" id="left-marker-name"></span>
+                <span class="marker-count-label" id="left-marker-count"></span>
+              </div>
+              <div class="marker-track" id="left-marker-track" onclick="event.stopPropagation();markerSeek(event,'left')">
+                <div class="marker-progress" id="left-marker-progress"></div>
+                <div id="left-marker-dots"></div>
+              </div>
+            </div>
             <div class="contender-footer">
               <span class="contender-name" id="left-name">—</span>
               <span class="elo-badge">score: <span id="left-elo">1200</span> &nbsp;·&nbsp; <span id="left-pos">—</span></span>
@@ -928,6 +1067,19 @@
               </button>
             </div>
             <div class="contender-inner" id="right-media-wrap"></div>
+            <div class="marker-wrap" id="right-marker-wrap">
+              <div class="marker-controls">
+                <button class="marker-btn" onclick="event.stopPropagation();jumpMarker('right',-1)" title="Previous marker"><svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="1.5" y="1.5" width="2" height="11" rx="1"/><path d="M12 7L5.5 3.5v7z"/></svg></button>
+                <button class="marker-btn" onclick="event.stopPropagation();addMarkerNow('right')" title="Add marker"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><line x1="3.5" y1="1.5" x2="3.5" y2="12.5"/><path d="M3.5 2h8L9 5.5l2.5 3.5H3.5"/></svg></button>
+                <button class="marker-btn" onclick="event.stopPropagation();jumpMarker('right',1)" title="Next marker"><svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="10.5" y="1.5" width="2" height="11" rx="1"/><path d="M2 7L8.5 3.5v7z"/></svg></button>
+                <span class="marker-name-label" id="right-marker-name"></span>
+                <span class="marker-count-label" id="right-marker-count"></span>
+              </div>
+              <div class="marker-track" id="right-marker-track" onclick="event.stopPropagation();markerSeek(event,'right')">
+                <div class="marker-progress" id="right-marker-progress"></div>
+                <div id="right-marker-dots"></div>
+              </div>
+            </div>
             <div class="contender-footer">
               <span class="contender-name" id="right-name">—</span>
               <span class="elo-badge">score: <span id="right-elo">1200</span> &nbsp;·&nbsp; <span id="right-pos">—</span></span>
@@ -1557,12 +1709,8 @@ function setupVideoAudio(vid, side) {
   state.vid = vid;
   vid.muted = true;
 
-  // Handle looping manually so Web Audio graph doesn't break it
+  // Looping is handled by setupMarkerTimeupdate to support start markers
   vid.loop = false;
-  vid.addEventListener('ended', () => {
-    vid.currentTime = 0;
-    vid.play().catch(() => {});
-  });
 
   btn.classList.add('visible');
   btn.classList.toggle('on', state.on);
@@ -1605,11 +1753,12 @@ async function renderMedia(fileEntry, wrapEl, nameEl, eloEl, side) {
     const vid = document.createElement('video');
     vid.src = url;
     vid.autoplay = true;
-    vid.loop = true;
+    vid.loop = false;
     vid.muted = true;
     vid.playsInline = true;
     if (videoControlsOn) vid.controls = true;
     wrapEl.appendChild(vid);
+    setupMarkerTimeupdate(vid, side);
     setupVideoAudio(vid, side);
   } else {
     const img = document.createElement('img');
@@ -1665,6 +1814,7 @@ async function saveUIPrefs() {
       thumbSize: lbThumbSize,
       perPage: lbPerPage,
       winnerStays,
+      videoControlsOn,
     });
   } catch(e) {}
 }
@@ -1688,6 +1838,10 @@ async function loadUIPrefs() {
       winnerStays = true;
       const cb = document.getElementById('winner-stays-checkbox');
       if (cb) cb.checked = true;
+    }
+    if (p.videoControlsOn) {
+      videoControlsOn = true;
+      document.getElementById('controls-btn').classList.add('active');
     }
   } catch(e) {}
 }
@@ -1736,6 +1890,8 @@ async function loadNextBattle() {
     document.getElementById('file-count-label').textContent = allFiles.length + ' files';
     document.getElementById('battle-count-bar').style.display = 'flex';
     updateDupeBanner();
+    renderMarkerBar('left');
+    renderMarkerBar('right');
 
     // Ensure AudioContext is running and explicitly play all videos
     if (audioCtx) audioCtx.resume().catch(() => {});
@@ -2029,7 +2185,7 @@ async function renderLeaderboard() {
         const url = URL.createObjectURL(file);
         lbThumbURLs.push(url);
         const idx = lbOpenURLs.length;
-        lbOpenURLs.push({ url, ext: fileEntry.ext });
+        lbOpenURLs.push({ url, ext: fileEntry.ext, hash: fileEntry.hash });
         clickAttr = `onclick="openLightboxIdx(${idx})"`;
         if (VIDEO_EXTS.has(fileEntry.ext)) {
           thumbHTML = `<video src="${url}" autoplay loop muted playsinline style="max-width:${lbThumbSize}px;object-fit:contain;border-radius:6px;display:block;"></video>`;
@@ -2102,27 +2258,33 @@ let lightboxVideoEl = null;
 
 function openLightboxIdx(idx) {
   const entry = lbOpenURLs[idx];
-  if (entry) openLightbox(entry.url, entry.ext);
+  if (entry) openLightbox(entry.url, entry.ext, entry.hash || null);
 }
 
-function openLightbox(url, ext) {
+function openLightbox(url, ext, hash = null) {
+  lightboxHash = hash;
   const inner = document.getElementById('lightbox-inner');
   inner.innerHTML = '';
+  const markerWrap = document.getElementById('lightbox-marker-wrap');
   if (VIDEO_EXTS.has(ext)) {
     const vid = document.createElement('video');
     vid.src = url;
     vid.autoplay = true;
-    vid.loop = true;
+    vid.loop = false;
     vid.muted = true;
     vid.controls = true;
     vid.playsInline = true;
     inner.appendChild(vid);
     lightboxVideoEl = vid;
+    setupMarkerTimeupdate(vid, 'lightbox');
+    markerWrap.classList.add('show');
+    renderMarkerBar('lightbox');
   } else {
     const img = document.createElement('img');
     img.src = url;
     inner.appendChild(img);
     lightboxVideoEl = null;
+    markerWrap.classList.remove('show');
   }
   document.getElementById('lightbox').classList.add('show');
   document.getElementById('lightbox-close').style.display = 'block';
@@ -2131,8 +2293,156 @@ function openLightbox(url, ext) {
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('show');
   document.getElementById('lightbox-close').style.display = 'none';
+  document.getElementById('lightbox-marker-wrap').classList.remove('show');
   if (lightboxVideoEl) { lightboxVideoEl.pause(); lightboxVideoEl = null; }
   document.getElementById('lightbox-inner').innerHTML = '';
+  lightboxHash = null;
+}
+
+// ── MARKERS ───────────────────────────────────────────────────────────
+let lightboxHash = null;
+const markerLabelTimers = {};
+
+function getMarkers(hash) {
+  return (hash && rankings[hash]?.markers) || [];
+}
+
+function getContextVideo(ctx) {
+  if (ctx === 'lightbox') return lightboxVideoEl;
+  return document.getElementById(ctx === 'left' ? 'left-media-wrap' : 'right-media-wrap')?.querySelector('video') || null;
+}
+
+function getContextHash(ctx) {
+  if (ctx === 'lightbox') return lightboxHash;
+  return ctx === 'left' ? leftHash : rightHash;
+}
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function renderMarkerBar(ctx) {
+  const hash = getContextHash(ctx);
+  const video = getContextVideo(ctx);
+  const dotsEl = document.getElementById(`${ctx}-marker-dots`);
+  if (!dotsEl) return;
+  dotsEl.innerHTML = '';
+  const markers = getMarkers(hash);
+  const countEl = document.getElementById(`${ctx}-marker-count`);
+  if (countEl) countEl.textContent = markers.length ? `${markers.length} marker${markers.length !== 1 ? 's' : ''}` : '';
+  const duration = video?.duration;
+  if (!duration || !isFinite(duration) || !markers.length) return;
+  markers.forEach((m, i) => {
+    const dot = document.createElement('div');
+    const label = m.label?.toLowerCase() || '';
+    dot.className = 'marker-dot' + (label.includes('start') ? ' marker-start' : label.includes('skip') ? ' marker-skip' : '');
+    dot.style.left = `${Math.min(100, Math.max(0, (m.time / duration) * 100))}%`;
+    const tip = document.createElement('div');
+    tip.className = 'marker-tip';
+    tip.textContent = m.label ? `${m.label} (${formatTime(m.time)})` : formatTime(m.time);
+    dot.appendChild(tip);
+    dot.addEventListener('click', e => { e.stopPropagation(); if (video) video.currentTime = m.time; showMarkerLabel(ctx, m); });
+    dot.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); deleteMarkerAt(hash, i, ctx); });
+    dotsEl.appendChild(dot);
+  });
+}
+
+function updateMarkerProgress(ctx) {
+  const video = getContextVideo(ctx);
+  const el = document.getElementById(`${ctx}-marker-progress`);
+  if (!el || !video || !video.duration) return;
+  el.style.width = `${(video.currentTime / video.duration) * 100}%`;
+}
+
+function markerSeek(e, ctx) {
+  const video = getContextVideo(ctx);
+  const track = document.getElementById(`${ctx}-marker-track`);
+  if (!video || !video.duration || !track) return;
+  const rect = track.getBoundingClientRect();
+  video.currentTime = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * video.duration;
+}
+
+function setupMarkerTimeupdate(video, ctx) {
+  video.addEventListener('timeupdate', () => { updateMarkerProgress(ctx); checkSkipMarkers(video, ctx); });
+  video.addEventListener('loadedmetadata', () => { renderMarkerBar(ctx); applyStartMarker(video, ctx); });
+  video.addEventListener('seeking', () => { if (video._internalSeeking) video._internalSeeking = false; else video._lastSkip = undefined; });
+  video.addEventListener('ended', () => {
+    const start = getFirstStartMarker(getContextHash(ctx));
+    video._internalSeeking = true;
+    video.currentTime = start ? start.time : 0;
+    video.play().catch(() => {});
+  });
+}
+
+function getFirstStartMarker(hash) {
+  return getMarkers(hash).find(m => m.label?.toLowerCase().includes('start')) ?? null;
+}
+
+function applyStartMarker(video, ctx) {
+  const start = getFirstStartMarker(getContextHash(ctx));
+  if (start) video.currentTime = start.time;
+}
+
+function checkSkipMarkers(video, ctx) {
+  const markers = getMarkers(getContextHash(ctx));
+  if (!markers.length) return;
+  const t = video.currentTime;
+  for (const m of markers) {
+    if (!m.label?.toLowerCase().includes('skip')) continue;
+    if (t >= m.time && t < m.time + 0.5 && video._lastSkip !== m.time) {
+      video._lastSkip = m.time;
+      const next = markers.find(n => n.time > m.time && !n.label?.toLowerCase().includes('skip'));
+      const target = next ?? getFirstStartMarker(getContextHash(ctx));
+      video._internalSeeking = true;
+      video.currentTime = target ? target.time : 0;
+      return;
+    }
+  }
+}
+
+function addMarkerNow(ctx) {
+  const video = getContextVideo(ctx);
+  const hash = getContextHash(ctx);
+  if (!video || !hash || !video.duration) return;
+  const time = video.currentTime;
+  const label = prompt(`Name this marker at ${formatTime(time)} (leave blank for none):`, '');
+  if (label === null) return;
+  if (!rankings[hash].markers) rankings[hash].markers = [];
+  rankings[hash].markers.push({ time, label: label.trim() });
+  rankings[hash].markers.sort((a, b) => a.time - b.time);
+  saveJson();
+  renderMarkerBar(ctx);
+  showMarkerLabel(ctx, { time, label: label.trim() });
+}
+
+function deleteMarkerAt(hash, idx, ctx) {
+  if (!rankings[hash]?.markers) return;
+  rankings[hash].markers.splice(idx, 1);
+  saveJson();
+  renderMarkerBar(ctx);
+}
+
+function jumpMarker(ctx, dir) {
+  const video = getContextVideo(ctx);
+  const hash = getContextHash(ctx);
+  if (!video || !hash) return;
+  const markers = getMarkers(hash);
+  if (!markers.length) return;
+  const t = video.currentTime;
+  const target = dir > 0
+    ? (markers.find(m => m.time > t + 0.1) ?? markers[0])
+    : ([...markers].reverse().find(m => m.time < t - 0.1) ?? markers[markers.length - 1]);
+  if (target) { video.currentTime = target.time; showMarkerLabel(ctx, target); }
+}
+
+function showMarkerLabel(ctx, marker) {
+  const el = document.getElementById(`${ctx}-marker-name`);
+  if (!el) return;
+  el.textContent = marker.label || formatTime(marker.time);
+  clearTimeout(markerLabelTimers[ctx]);
+  markerLabelTimers[ctx] = setTimeout(() => { el.textContent = ''; }, 2500);
 }
 
 // ── KEYBOARD ──────────────────────────────────────────────────────────
@@ -2165,6 +2475,8 @@ function toggleVideoControls() {
   document.querySelectorAll('#battle-area video').forEach(v => { v.controls = videoControlsOn; });
   document.getElementById('battle-area').classList.toggle('video-controls-on', videoControlsOn);
   document.getElementById('controls-btn').classList.toggle('active', videoControlsOn);
+  if (videoControlsOn) { renderMarkerBar('left'); renderMarkerBar('right'); }
+  saveUIPrefs();
 }
 
 document.addEventListener('keydown', (e) => {
@@ -2205,6 +2517,9 @@ document.addEventListener('keydown', (e) => {
     saveAudioPrefs();
     return;
   }
+  if (e.key === ',') { e.preventDefault(); lightboxHash ? jumpMarker('lightbox', -1) : (videoControlsOn && jumpMarker('left', -1)); return; }
+  if (e.key === '.') { e.preventDefault(); lightboxHash ? jumpMarker('lightbox',  1) : (videoControlsOn && jumpMarker('right', 1)); return; }
+  if (e.key === 'k' || e.key === 'K') { if (lightboxHash) { e.preventDefault(); addMarkerNow('lightbox'); return; } }
   if (e.key === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') { e.preventDefault(); if (!videoControlsOn) { isDupePair ? deleteDupe('left')  : pick('left');  } }
   if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { e.preventDefault(); if (!videoControlsOn) { isDupePair ? deleteDupe('right') : pick('right'); } }
   if (e.key === 'ArrowUp'    || e.key === 's' || e.key === 'S') { e.preventDefault(); skip(); }
@@ -2259,6 +2574,7 @@ let tooltipTimer = null;
 document.addEventListener('mouseover', e => {
   const target = e.target.closest('[data-tip]');
   if (!target) return;
+  if (videoControlsOn && target.closest('.contender') && !e.target.closest('.contender-header')) return;
   clearTimeout(tooltipTimer);
   tooltipTimer = setTimeout(() => {
     tooltipEl.textContent = target.dataset.tip;
